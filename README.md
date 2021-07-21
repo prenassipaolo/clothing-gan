@@ -1,1 +1,1 @@
-# clothing-gan
+# vae-vgg
