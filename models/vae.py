@@ -7,6 +7,7 @@ class Encoder(nn.Module):
         super().__init__()
 
         modules = []
+
         for hidden_dim in hidden_dims:
             # downscaling factor equal to 2
             modules.append(
@@ -58,7 +59,7 @@ class Sampling(nn.Module):
         epsilon = torch.randn_like(log_var) # with dimension: batch * latent_dim
         sigma = torch.exp(0.5 * log_var)
 
-        return mu +  epsilon * sigma
+        return mu + epsilon * sigma
 
 
 class Decoder(nn.Module):
@@ -126,4 +127,33 @@ class Decoder(nn.Module):
 
         return x
 
-# class VAE(nn.Module):
+
+class VAE(nn.Module):
+    def __init__(self, encoder, sampling, decoder):
+        super().__init__()
+
+        self.encoder = encoder
+        self.sampling = sampling
+        self.decoder = decoder
+
+    def forward(self, x):
+        mu, log_var = self.encoder(x)
+        z = self.sampling(mu, log_var)
+        output = self.decoder(z)
+
+        return output
+
+
+'''
+### EXAMPLE
+
+x = torch.ones([20,3,32,32])
+enc = Encoder(in_channels=3, latent_dim= 256, hidden_dims=[32, 64, 128, 256], im_dim = 32, feedforward_block_dim = 256)
+sampl = Sampling()
+dec = Decoder()
+
+vae = VAE(enc, sampl, dec)
+
+y = vae(x)
+print(y)
+'''
