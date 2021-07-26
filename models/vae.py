@@ -4,8 +4,6 @@ from torch import nn
 class Encoder(nn.Module):
     def __init__(self, in_channels: int, latent_dim : int = 256, hidden_dims: list = [32, 64, 128, 256], im_dim: int = 32, feedforward_block_dim: int = 20):
         super().__init__()
-        
-        self.latent_dim = latent_dim
 
         modules = []
         for hidden_dim in hidden_dims:
@@ -46,8 +44,8 @@ class Encoder(nn.Module):
         return mu, log_sigma
 
 
-# class Sampling(nn.Module):
+# lass Sampling(nn.Module):
 
-# class EncoderModel(nn.Module):
+# class Decoder(nn.Module)
 
 # class VAE(nn.Module):
