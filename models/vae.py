@@ -6,6 +6,9 @@ class Encoder(nn.Module):
     def __init__(self, in_channels: int = 3, latent_dim : int = 256, hidden_dims: list = [32, 64, 128, 256], im_dim: int = 32, feedforward_block_dim: int = 256):
         super().__init__()
 
+        self.mu = None
+        self.log_var = None
+
         modules = []
 
         for hidden_dim in hidden_dims:
@@ -45,21 +48,24 @@ class Encoder(nn.Module):
         x = torch.flatten(x, start_dim=1)
         x = self.feedforward_block(x)
 
-        mu = self.feedforward_mu(x)
-        log_var = self.feedforward_sigma(x)
+        self.mu = self.feedforward_mu(x)
+        self.log_var = self.feedforward_sigma(x)
 
-        return mu, log_var
+        return self.mu, self.log_var
 
 
 class Sampling(nn.Module):
-    def __init__(self): 
-        pass
+    def __init__(self):
+        self.sigma = None
+        self.z = None
 
     def __call__(self, mu, log_var):
         epsilon = torch.randn_like(log_var) # with dimension: batch * latent_dim
-        sigma = torch.exp(0.5 * log_var)
+        self.sigma = torch.exp(0.5 * log_var)
 
-        return mu + epsilon * sigma
+        self.z = mu + epsilon * self.sigma
+
+        return self.z
 
 
 class Decoder(nn.Module):
@@ -144,6 +150,50 @@ class VAE(nn.Module):
         return output
 
 
+
+def kl_divergence(mu, sigma, z):
+
+    # create distributions p(z)~N(0,1), q(z|x)~N(mu,sigma^2)
+    pz_distr = torch.distributions.Normal(torch.zeros_like(mu), torch.ones_like(sigma))
+    qzx_distr = torch.distributions.Normal(mu, sigma)
+
+    # get the log-probabilities of p(z) and q(z|x)
+    log_pz = pz_distr.log_prob(z)
+    log_qzx = qzx_distr.log_prob(z)
+    
+    # kl-diverence
+    kl = (log_qzx - log_pz).sum(-1)
+
+    return kl
+
+def reconstruction_loss(x, x_hat, log_scale):
+
+    # create distribution p(x|z)
+    scale = torch.exp(log_scale) # learnable parameter
+    mean = x_hat
+    pxz_distr = torch.distributions.Normal(mean, scale)
+
+    # measure log-prob of seeing image under p(x|z)
+    log_pxz = pxz_distr.log_prob(x)
+
+    recon_loss = log_pxz.sum(dim=(1, 2, 3))
+
+    return recon_loss
+
+
+def elbo_loss(mu, sigma, z, x, x_hat, log_scale):
+
+    # kl
+    kl = kl_divergence(mu, sigma, z)
+
+    # reconstruction loss
+    recon_loss = reconstruction_loss(x, x_hat, log_scale)
+
+    # elbo_loss average on batch
+    elbo = (kl - recon_loss).mean()
+
+    return elbo
+
 '''
 ### EXAMPLE
 
@@ -154,6 +204,15 @@ dec = Decoder()
 
 vae = VAE(enc, sampl, dec)
 
-y = vae(x)
-print(y)
+x_hat = vae(x)
+
+elbo = elbo_loss(
+    vae.encoder.mu, 
+    vae.sampling.sigma, 
+    vae.sampling.z, 
+    x, 
+    x_hat, 
+    torch.tensor([0]))
+
+print(elbo)
 '''
