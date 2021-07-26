@@ -10,25 +10,29 @@ class Encoder(nn.Module):
             # downscaling factor equal to 2
             modules.append(
                 nn.Sequential(
-                    nn.Conv2d(in_channels=in_channels,
-                              out_channels=hidden_dim,
-                              kernel_size= 3,
-                              stride= 2,
-                              padding  = 1),
+                    nn.Conv2d(
+                        in_channels=in_channels,
+                        out_channels=hidden_dim,
+                        kernel_size= 3,
+                        stride= 2,
+                        padding  = 1
+                    ),
                     nn.BatchNorm2d(hidden_dim),
-                    nn.LeakyReLU())
+                    nn.LeakyReLU()
+                )
             )
             in_channels = hidden_dim
 
         self.encoder = nn.Sequential(*modules)
 
         encoder_output_H_dim = im_dim / 2 ** len(hidden_dims)
-        encoder_output_chxHxW_dim = hidden_dims[-1]*(encoder_output_H_dim ** 2)
+        encoder_output_CxHxW_dim = hidden_dims[-1]*(encoder_output_H_dim ** 2)
 
-        self.feedforward_block = nn.Sequential(nn.Linear(encoder_output_chxHxW_dim, feedforward_block_dim),
-                                               nn.BatchNorm2d(feedforward_block_dim),
-                                               nn.LeakyReLU()
-                                               )
+        self.feedforward_block = nn.Sequential(
+                                    nn.Linear(encoder_output_CxHxW_dim, feedforward_block_dim),
+                                    nn.BatchNorm2d(feedforward_block_dim),
+                                    nn.LeakyReLU()
+                                 )
 
         self.feedforward_mu = nn.Linear(feedforward_block_dim, latent_dim)
         self.feedforward_sigma = nn.Linear(feedforward_block_dim, latent_dim)
@@ -39,12 +43,21 @@ class Encoder(nn.Module):
         x = torch.flatten(x, start_dim=1)
 
         mu = self.feedforward_mu(x)
-        log_sigma = self.feedforward_sigma(x)
+        log_var = self.feedforward_sigma(x)
 
-        return mu, log_sigma
+        return mu, log_var
 
 
-# lass Sampling(nn.Module):
+class Sampling(nn.Module):
+    def __init__(self): 
+        pass
+
+    def __call__(self, mu, log_var):
+        epsilon = torch.randn_like(log_var) # with dimension: batch * latent_dim
+        sigma = torch.exp(0.5 * log_var)
+
+        return mu +  epsilon * sigma
+
 
 # class Decoder(nn.Module)
 
