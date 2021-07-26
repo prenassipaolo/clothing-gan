@@ -1,3 +1,4 @@
+import numpy as np
 import torch
 from torch import nn
 
@@ -60,6 +61,69 @@ class Sampling(nn.Module):
         return mu +  epsilon * sigma
 
 
-# class Decoder(nn.Module)
+class Decoder(nn.Module):
+    def __init__(self, out_channels: int = 3, latent_dim : int = 256, hidden_dims: list = [256, 128, 64, 32], im_dim: int = 32, feedforward_block_dim: int = 1024):
+        super().__init__()
+
+        self.feedforward_block_dim  = feedforward_block_dim
+        self.dim_channel_0 = hidden_dims[0]
+
+        # feedforward block
+        self.feedforward_block = nn.Sequential(
+            nn.Linear(latent_dim, feedforward_block_dim),
+            nn.BatchNorm1d(feedforward_block_dim)
+        )
+
+        # deconvolution blocks
+        modules = []
+
+        for i in range(len(hidden_dims) - 1):
+            # upscaling factor equal to 2
+            modules.append(
+                nn.Sequential(
+                    nn.ConvTranspose2d(
+                        in_channels=hidden_dims[i],
+                        out_channels=hidden_dims[i + 1],
+                        kernel_size= 3,
+                        stride= 2,
+                        padding  = 1,
+                        output_padding=1    # necessary to adjust the dimensions: it adds zeros on the bottom right of the output
+                    ),
+                    nn.BatchNorm2d(hidden_dims[i + 1]),
+                    nn.LeakyReLU())
+            )
+        
+        self.decoder = nn.Sequential(*modules)
+
+        # last upscale to obtain the image dimension
+        self.final_block = nn.Sequential(
+            nn.ConvTranspose2d(
+                in_channels=hidden_dims[-1],
+                out_channels=hidden_dims[-1],
+                kernel_size=3,
+                stride=2,
+                padding=1,
+                output_padding=1
+            ),
+            nn.BatchNorm2d(hidden_dims[-1]),
+            nn.LeakyReLU(),
+            nn.Conv2d(
+                in_channels=hidden_dims[-1], 
+                out_channels= out_channels,
+                kernel_size= 3, 
+                padding= 1
+            ),
+            nn.Tanh()
+        )
+
+
+    def forward(self, z):
+        z = self.feedforward_block(z)
+        H_dim = int(np.sqrt(self.feedforward_block_dim/self.dim_channel_0))
+        z = z.view(-1, self.dim_channel_0, H_dim, H_dim)
+        x = self.decoder(z)
+        x = self.final_block(x)
+
+        return x
 
 # class VAE(nn.Module):
