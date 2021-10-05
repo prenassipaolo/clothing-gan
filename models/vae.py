@@ -2,6 +2,7 @@ import numpy as np
 import torch
 from torch import nn
 
+
 class Encoder(nn.Module):
     def __init__(self, in_channels: int = 3, latent_dim : int = 256, hidden_dims: list = [32, 64, 128, 256], im_dim: int = 32, feedforward_block_dim: int = 256):
         super().__init__()
@@ -54,15 +55,16 @@ class Encoder(nn.Module):
         return self.mu, self.log_var
 
 
-class Sampling(nn.Module):
+class Sampling():
     def __init__(self):
         self.sigma = None
         self.z = None
 
     def __call__(self, mu, log_var):
         epsilon = torch.randn_like(log_var) # with dimension: batch * latent_dim
+        epsilon = epsilon.type_as(mu) # Setting epsilon to be .cuda when using GPU training 
         self.sigma = torch.exp(0.5 * log_var)
-
+        
         self.z = mu + epsilon * self.sigma
 
         return self.z
@@ -197,6 +199,8 @@ def elbo_loss(mu, sigma, z, x, x_hat, log_scale):
 '''
 ### EXAMPLE
 
+from torchsummary import summary
+
 x = torch.ones([20,3,32,32])
 enc = Encoder(in_channels=3, latent_dim= 256, hidden_dims=[32, 64, 128, 256], im_dim = 32, feedforward_block_dim = 256)
 sampl = Sampling()
@@ -215,4 +219,7 @@ elbo = elbo_loss(
     torch.tensor([0]))
 
 print(elbo)
+#print(sampl)
+
+#print(summary(vae))
 '''
