@@ -136,6 +136,9 @@ class VAE(nn.Module):
         self.encoder = encoder
         self.decoder = decoder
 
+        # learnable parameter for the gaussian likelihood in the reconstruction_loss
+        self.log_scale = nn.Parameter(torch.Tensor([0.0]))
+
     def forward(self, x):
         mu, log_var = self.encoder(x)
         sigma = torch.exp(0.5 * log_var)
@@ -165,8 +168,7 @@ def reconstruction_loss(x, x_hat, log_scale):
 
     # create distribution p(x|z)
     scale = torch.exp(log_scale) # learnable parameter
-    mean = x_hat
-    pxz_distr = torch.distributions.Normal(mean, scale)
+    pxz_distr = torch.distributions.Normal(x_hat, scale)
 
     # measure log-prob of seeing image under p(x|z)
     log_pxz = pxz_distr.log_prob(x)
@@ -213,5 +215,4 @@ elbo = elbo_loss(
 
 print(f'elbo: {elbo}\n')
 print(f'vae_summary:\n{summary(vae)}\n')
-
 '''
