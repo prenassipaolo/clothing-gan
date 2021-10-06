@@ -1,14 +1,12 @@
 import numpy as np
 import torch
 from torch import nn
+from torch.optim import Adam
 
 
 class Encoder(nn.Module):
     def __init__(self, in_channels: int = 3, latent_dim : int = 256, hidden_dims: list = [32, 64, 128, 256], im_dim: int = 32, feedforward_block_dim: int = 256):
         super().__init__()
-
-        self.mu = None
-        self.log_var = None
 
         modules = []
 
@@ -49,25 +47,20 @@ class Encoder(nn.Module):
         x = torch.flatten(x, start_dim=1)
         x = self.feedforward_block(x)
 
-        self.mu = self.feedforward_mu(x)
-        self.log_var = self.feedforward_sigma(x)
+        mu = self.feedforward_mu(x)
+        log_var = self.feedforward_sigma(x)
 
-        return self.mu, self.log_var
+        return mu, log_var
+    
 
+def sampling(mu, sigma):
 
-class Sampling():
-    def __init__(self):
-        self.sigma = None
-        self.z = None
+    epsilon = torch.randn_like(sigma) # with dimension: batch * latent_dim
+    epsilon = epsilon.type_as(mu) # Setting epsilon to be .cuda when using GPU training 
+    
+    z = mu + epsilon * sigma
 
-    def __call__(self, mu, log_var):
-        epsilon = torch.randn_like(log_var) # with dimension: batch * latent_dim
-        epsilon = epsilon.type_as(mu) # Setting epsilon to be .cuda when using GPU training 
-        self.sigma = torch.exp(0.5 * log_var)
-        
-        self.z = mu + epsilon * self.sigma
-
-        return self.z
+    return z
 
 
 class Decoder(nn.Module):
@@ -129,7 +122,7 @@ class Decoder(nn.Module):
     def forward(self, z):
         z = self.feedforward_block(z)
         H_dim = int(np.sqrt(self.feedforward_block_dim/self.dim_channel_0))
-        z = z.view(-1, self.dim_channel_0, H_dim, H_dim)
+        z = z.view(-1, self.dim_channel_0, H_dim, H_dim)    # z.view(z.size(0),-1)
         x = self.decoder(z)
         x = self.final_block(x)
 
@@ -137,19 +130,19 @@ class Decoder(nn.Module):
 
 
 class VAE(nn.Module):
-    def __init__(self, encoder, sampling, decoder):
+    def __init__(self, encoder, decoder):
         super().__init__()
 
         self.encoder = encoder
-        self.sampling = sampling
         self.decoder = decoder
 
     def forward(self, x):
         mu, log_var = self.encoder(x)
-        z = self.sampling(mu, log_var)
-        output = self.decoder(z)
+        sigma = torch.exp(0.5 * log_var)
+        z = sampling(mu, sigma)
+        x_hat = self.decoder(z)
 
-        return output
+        return x_hat, mu, sigma, z
 
 
 
@@ -196,6 +189,7 @@ def elbo_loss(mu, sigma, z, x, x_hat, log_scale):
 
     return elbo
 
+
 '''
 ### EXAMPLE
 
@@ -203,23 +197,21 @@ from torchsummary import summary
 
 x = torch.ones([20,3,32,32])
 enc = Encoder(in_channels=3, latent_dim= 256, hidden_dims=[32, 64, 128, 256], im_dim = 32, feedforward_block_dim = 256)
-sampl = Sampling()
 dec = Decoder()
 
-vae = VAE(enc, sampl, dec)
+vae = VAE(enc, dec)
 
-x_hat = vae(x)
+x_hat, mu, sigma, z = vae(x)
 
 elbo = elbo_loss(
-    vae.encoder.mu, 
-    vae.sampling.sigma, 
-    vae.sampling.z, 
+    mu, 
+    sigma, 
+    z, 
     x, 
     x_hat, 
     torch.tensor([0]))
 
-print(elbo)
-#print(sampl)
+print(f'elbo: {elbo}\n')
+print(f'vae_summary:\n{summary(vae)}\n')
 
-#print(summary(vae))
 '''
