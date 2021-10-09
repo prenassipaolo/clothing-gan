@@ -170,6 +170,7 @@ class Train():
 
 
 # EXAMPLE
-''''''
+'''
 T = Train()
 print(T.set_device())
+'''
