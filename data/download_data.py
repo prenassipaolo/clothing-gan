@@ -1,7 +1,7 @@
 import torchvision.transforms as transforms
 from torchvision.datasets import CIFAR10
 
-# download dataset
+# download CIFAR
 def download_cifar_datasets():
     # create transform function
     transform_train = transforms.Compose([
@@ -30,3 +30,20 @@ def download_cifar_datasets():
         transform=transform_test,
     )
     return train_data, test_data
+
+
+# download MNIST
+def download_mnist_datasets():
+    train_data = datasets.MNIST(
+        root="input",
+        download=True,
+        train=True,
+        transform=ToTensor()
+    )
+    validation_data = datasets.MNIST(
+        root="input",
+        download=True,
+        train=False,
+        transform=ToTensor()
+    )
+    return train_data, validation_data
