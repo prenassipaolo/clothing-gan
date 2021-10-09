@@ -46,21 +46,21 @@ def download_cifar_dataset():
 def download_mnist_dataset():
 
     # create transform function
-    #transform_train, transform_test = transform_data(size=32, padding=4)
+    #transform_train, transform_test = transform_data(size=28, padding=4)
     transform_train, transform_test = transforms.ToTensor(), transforms.ToTensor()
 
     # create datasets
     train_data = datasets.MNIST(
-        root="input",
+        root="./data",
         download=True,
         train=True,
         transform=transform_train
     )
     validation_data = datasets.MNIST(
-        root="input",
+        root="./data",
         download=True,
         train=False,
         transform=transform_test
     )
-    
+
     return train_data, validation_data

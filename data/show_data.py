@@ -2,13 +2,13 @@ import torch
 import torchvision
 import matplotlib.pyplot as plt
 import numpy as np
-from download_data import download_cifar_datasets
+from download_data import download_cifar_dataset, download_mnist_dataset
 
 BATCH_SIZE = 4
 NUM_WORKERS = 2
 
-classes = ('plane', 'car', 'bird', 'cat',
-        'deer', 'dog', 'frog', 'horse', 'ship', 'truck')
+cifar_classes = ('plane', 'car', 'bird', 'cat', 'deer', 'dog', 'frog', 'horse', 'ship', 'truck')
+mnist_classes = range(0,10)
 
 # functions to show an image
 def imshow(img):
@@ -23,7 +23,11 @@ def imshow(img):
 if __name__ == '__main__':
 
     # load data
-    trainset, testset = download_cifar_datasets()
+    #trainset, testset = download_cifar_dataset()
+    #classes = cifar_classes
+    trainset, testset = download_mnist_dataset()
+    classes = mnist_classes
+
     trainloader = torch.utils.data.DataLoader(trainset, batch_size=BATCH_SIZE,
                                             shuffle=True, num_workers=NUM_WORKERS)
     testloader = torch.utils.data.DataLoader(testset, batch_size=BATCH_SIZE,
