@@ -168,9 +168,3 @@ class Train():
     def __call__(self, model, train_set, test_set):
         return self.train(model, train_set, test_set)
 
-
-# EXAMPLE
-'''
-T = Train()
-print(T.set_device())
-'''

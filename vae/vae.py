@@ -145,30 +145,3 @@ class VAE(nn.Module):
         x_hat = self.decoder(z)
 
         return x_hat, mu, sigma, z
-
-
-
-'''
-### EXAMPLE
-
-from torchsummary import summary
-
-x = torch.ones([20,3,32,32])
-enc = Encoder(in_channels=3, latent_dim= 256, hidden_dims=[32, 64, 128, 256], im_dim = 32, feedforward_block_dim = 256)
-dec = Decoder()
-
-vae = VAE(enc, dec)
-
-x_hat, mu, sigma, z = vae(x)
-
-elbo = elbo_loss(
-    mu, 
-    sigma, 
-    z, 
-    x, 
-    x_hat, 
-    torch.tensor([0]))
-
-print(f'elbo: {elbo}\n')
-print(f'vae_summary:\n{summary(vae)}\n')
-'''
