@@ -2,7 +2,12 @@ import numpy as np
 import pandas as pd
 import torch
 from tqdm import tqdm
-from loss import elbo_loss
+# folder scripts
+from vae.loss import elbo_loss
+from vae.optimizer import Adam
+from vae.scheduler import StepLR
+from vae.earlystopping import EarlyStopping
+
 
 
 
@@ -50,7 +55,7 @@ class Train():
             x_hat, mu, sigma, z = model(x)
 
             # negative log-likelihood for a tensor of size (batch x 1 x n_output)
-            loss = elbo_loss(mu, sigma, z, x, x_hat, model.log_scale)     # no need to squeeze the variables since all are on the device
+            loss = elbo_loss(x, mu, sigma, z, x_hat, model.log_scale)     # no need to squeeze the variables since all are on the device
 
             optimizer.zero_grad()
             loss.backward()
@@ -86,7 +91,7 @@ class Train():
                 x_hat, mu, sigma, z = model(x)
 
                 # save losses
-                loss += elbo_loss(mu, sigma, z, x, x_hat, model.log_scale)/len(test_loader)
+                loss += elbo_loss(x, mu, sigma, z, x_hat, model.log_scale)/len(test_loader)
 
         s = "-- TEST  Loss: {loss:.4f}"
         d = {
@@ -111,12 +116,13 @@ class Train():
                 earlystop = True
         return earlystop
 
-    def train(self, train_set, test_set, model, optimizer, scheduler=None, earlystopping=None):
+    def train(self, train_set, test_set, model):
         # associate the architecture parameters to the chosen optimizer class
-        opt = optimizer(model.parameters())
-        # if scheduler exits associate it to the optimizer
-        if scheduler:
-            scheduler = scheduler(opt)
+        optimizer = Adam()(model.parameters())
+        # associate optimizer to the scheduler
+        scheduler = StepLR()(optimizer)
+        # create earlystopping class instance
+        earlystopping = EarlyStopping(checkpoint_path='checkpoint/vae.pth',  patience=np.inf, mode="min", delta=0.001)
         # send architecture to device
         model.to(self.device)
         # set dataloaders
@@ -142,15 +148,14 @@ class Train():
         for epoch in range(1, self.epochs + 1):
             print(f'Epoch: {epoch}')
             # append train metrics
-            loss = self.train_epoch(model, train_loader, opt)
+            loss = self.train_epoch(model, train_loader, optimizer)
             train_loss.append(loss)
             # append test metrics
             loss = self.test_epoch(model, test_loader)
             test_loss.append(loss)
             
             # update learning rate
-            if scheduler:
-                scheduler.step()
+            scheduler.step()
             
             # check early stopping
             if self.earlystop(model, loss, earlystopping):  #change criterion to change metric to check
@@ -165,6 +170,6 @@ class Train():
 
         return df
 
-    def __call__(self, model, train_set, test_set):
-        return self.train(model, train_set, test_set)
+    def __call__(self, train_set, test_set, model):
+        return self.train(train_set, test_set, model)
 

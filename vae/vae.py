@@ -4,8 +4,15 @@ from torch import nn
 
 
 class Encoder(nn.Module):
-    def __init__(self, in_channels: int = 3, latent_dim : int = 256, hidden_dims: list = [32, 64, 128, 256], im_dim: int = 32, feedforward_block_dim: int = 256):
+    def __init__(self, in_channels: int = 3, latent_dim : int = 256, hidden_dims: list = [32, 64, 128, 256], im_dim: int = 32, feedforward_block_dim: int = 1024):
         super().__init__()
+
+        # check if the given image has height and width that are powers of 2
+        assert im_dim==2**int(np.log2(im_dim)), "Error: The image sizes must be a power of 2"
+
+        # dimensions of the outputs of the convolution part of the encoder
+        encoder_conv_output_H_dim = im_dim // 2 ** len(hidden_dims)
+        encoder_conv_output_CxHxW_dim = hidden_dims[-1]*(encoder_conv_output_H_dim ** 2)
 
         modules = []
 
@@ -28,15 +35,12 @@ class Encoder(nn.Module):
 
         self.encoder = nn.Sequential(*modules)
 
-        encoder_output_H_dim = im_dim // 2 ** len(hidden_dims)
-        encoder_output_CxHxW_dim = hidden_dims[-1]*(encoder_output_H_dim ** 2)
-
         self.feedforward_block = nn.Sequential(
-                                    nn.Linear(encoder_output_CxHxW_dim, feedforward_block_dim),
+                                    nn.Linear(encoder_conv_output_CxHxW_dim, feedforward_block_dim),
                                     nn.BatchNorm1d(feedforward_block_dim),
                                     nn.LeakyReLU()
                                  )
-
+        # encoded space variables
         self.feedforward_mu = nn.Linear(feedforward_block_dim, latent_dim)
         self.feedforward_sigma = nn.Linear(feedforward_block_dim, latent_dim)
 
@@ -65,6 +69,14 @@ def sampling(mu, sigma):
 class Decoder(nn.Module):
     def __init__(self, out_channels: int = 3, latent_dim : int = 256, hidden_dims: list = [256, 128, 64, 32], im_dim: int = 32, feedforward_block_dim: int = 1024):
         super().__init__()
+
+        # dimensions of the inputs of the convolution part of the decoder
+        decoder_conv_input_H_dim = im_dim // 2 ** len(hidden_dims)
+        decoder_conv_input_CxHxW_dim = hidden_dims[0]*(decoder_conv_input_H_dim ** 2)
+        # check if the feedforward block dimensions are coherent with respect the convolution operations performed
+        error_message = f"Error: The feedforward block dimensions are not compatible with the convolution blocks dimensions \
+            to obtain the initial image.\nSuggested dimension: {decoder_conv_input_CxHxW_dim}"
+        assert decoder_conv_input_CxHxW_dim==feedforward_block_dim, error_message
 
         self.feedforward_block_dim  = feedforward_block_dim
         self.dim_channel_0 = hidden_dims[0]

@@ -1,2 +1,3 @@
 https://towardsdatascience.com/beginner-guide-to-variational-autoencoders-vae-with-pytorch-lightning-13dbc559ba4b
 https://towardsdatascience.com/variational-autoencoder-demystified-with-pytorch-implementation-3a06bee395ed
+https://github.com/AntixK/PyTorch-VAE/blob/master/models/vanilla_vae.py
